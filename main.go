@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 
+	"github.com/aselhid/indoscript/internal/ast"
+	"github.com/aselhid/indoscript/internal/interpreter"
 	"github.com/aselhid/indoscript/internal/lexer"
 )
 
@@ -26,18 +28,19 @@ func runFile(filename string) error {
 	if err != nil {
 		return err
 	}
-	if err := run(file); err != nil {
-		return err
-	}
+	run(file)
 	return nil
 }
 
-// run code coming from io.Reader
-// used to run code from either file or stdin
-func run(reader io.Reader) error {
-	tokens, err := lexer.ScanTokens(reader)
-	if err != nil {
-		return err
+func run(reader io.Reader) {
+	scanner := lexer.NewScanner(reader, os.Stderr)
+	tokens := scanner.ScanTokens()
+	parser := ast.NewParser(tokens)
+	exprs, hasError := parser.Parse()
+	fmt.Printf("%#v\n", exprs)
+	if hasError {
+		os.Exit(1)
 	}
-	return nil
+	interpreter := interpreter.NewInterpreter(os.Stderr)
+	interpreter.Interpret(exprs)
 }

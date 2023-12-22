@@ -10,6 +10,20 @@ import (
 	"github.com/aselhid/indoscript/internal/ast"
 )
 
+/*
+Grammar (so far)
+----------------
+
+expression -> equality
+equality   -> comparison ( ("!=" | "==") comparison )*
+comparison -> term ( ( ">" | ">=" | "<" | "<=" ) term )*
+term       -> factor ( ( "-" | "+" ) factor )*
+factor     -> unary ( ( "/" | "*" ) unary )*
+unary      -> ( "!" | "-" ) unary | primary
+primary    -> FALSE | TRUE | NIL | NUMBER | STRING | group
+group      -> "(" expression ")"
+*/
+
 type Reader struct {
 	*bufio.Reader
 }
@@ -31,7 +45,6 @@ type Scanner struct {
 	reader     *Reader
 	tokens     []ast.Token
 	buffer     []rune
-	errors     error
 	lineNumber int
 	stdErr     io.Writer
 }
@@ -133,7 +146,7 @@ func (s *Scanner) scanToken() {
 			s.buffer = []rune{char}
 			s.identifierOrKeyword()
 		} else {
-			s.writeError(fmt.Sprintf("found unexpected character  \"%c\"", char))
+			s.error(fmt.Sprintf("found unexpected character  \"%c\"", char))
 		}
 
 	}
@@ -145,7 +158,7 @@ func (s *Scanner) string() {
 	}
 
 	if s.isAtEnd() || s.reader.PeekRune() == '\n' {
-		s.writeError("unterminated string")
+		s.error("unterminated string")
 		return
 	}
 
@@ -231,6 +244,6 @@ func (s *Scanner) isAllowedAlphanumeric(r rune) bool {
 	return s.isAllowedAlpha(r) || s.isDigit(r)
 }
 
-func (s *Scanner) writeError(message string) {
+func (s *Scanner) error(message string) {
 	s.stdErr.Write([]byte(fmt.Sprintf("[line %d] %s\n", s.lineNumber, message)))
 }
