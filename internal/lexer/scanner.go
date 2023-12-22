@@ -10,6 +10,20 @@ import (
 	"github.com/aselhid/indoscript/internal/ast"
 )
 
+/*
+Grammar (so far)
+----------------
+
+expression -> equality
+equality   -> comparison ( ("!=" | "==") comparison )*
+comparison -> term ( ( ">" | ">=" | "<" | "<=" ) term )*
+term       -> factor ( ( "-" | "+" ) factor )*
+factor     -> unary ( ( "/" | "*" ) unary )*
+unary      -> ( "!" | "-" ) unary | primary
+primary    -> FALSE | TRUE | NIL | NUMBER | STRING | group
+group      -> "(" expression ")"
+*/
+
 type Reader struct {
 	*bufio.Reader
 }
