@@ -36,11 +36,10 @@ func run(reader io.Reader) {
 	scanner := lexer.NewScanner(reader, os.Stderr)
 	tokens := scanner.ScanTokens()
 	parser := ast.NewParser(tokens)
-	exprs, hasError := parser.Parse()
-	fmt.Printf("%#v\n", exprs)
+	stmts, hasError := parser.Parse()
 	if hasError {
 		os.Exit(1)
 	}
-	interpreter := interpreter.NewInterpreter(os.Stderr)
-	interpreter.Interpret(exprs)
+	interpreter := interpreter.NewInterpreter(os.Stdout, os.Stderr)
+	interpreter.Interpret(stmts)
 }

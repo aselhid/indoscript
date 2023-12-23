@@ -1,2 +1,7 @@
-misal a = 1;
-misal b = 1;
+misal a = "hello";
+a = "good bye";
+misal b = "world";
+
+cetak a + " " + b;
+cetak 20 + 3;
+cetak benar;
