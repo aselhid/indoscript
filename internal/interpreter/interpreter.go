@@ -5,26 +5,22 @@ import (
 	"io"
 
 	"github.com/aselhid/indoscript/internal/ast"
+	"github.com/aselhid/indoscript/internal/environment"
+	"github.com/aselhid/indoscript/internal/errors"
 	"github.com/google/go-cmp/cmp"
 )
 
-type runtimeError struct {
-	message string
-	token   ast.Token
-}
-
-func (e runtimeError) Error() string {
-	return fmt.Sprintf("'%s' - %s", e.token.Lexeme, e.message)
-}
+var globalEnvironment = environment.NewEnvironment(nil)
 
 type Interpreter struct {
 	stdErr io.Writer
+	stdOut io.Writer
 }
 
-func (i *Interpreter) Interpret(exprs []ast.Expr) (hasRuntimeError bool) {
+func (i *Interpreter) Interpret(stmts []ast.Stmt) (hasRuntimeError bool) {
 	defer func() {
 		if err := recover(); err != nil {
-			if e, ok := err.(runtimeError); ok {
+			if e, ok := err.(errors.RuntimeError); ok {
 				i.stdErr.Write([]byte(e.Error() + "\n"))
 			} else {
 				fmt.Printf("Error: %s\n", err)
@@ -33,10 +29,24 @@ func (i *Interpreter) Interpret(exprs []ast.Expr) (hasRuntimeError bool) {
 		}
 	}()
 
-	for _, expr := range exprs {
-		fmt.Println(i.evaluate(expr))
+	for _, stmt := range stmts {
+		i.execute(stmt)
 	}
 	return false
+}
+
+func (i *Interpreter) VisitVarStmt(stmt ast.VarStmt) {
+	value := i.evaluate(stmt.Expression)
+	globalEnvironment.Define(stmt.Identifier, value)
+}
+
+func (i *Interpreter) VisitPrintStmt(stmt ast.PrintStmt) {
+	expr := i.evaluate(stmt.Expression)
+	i.stdOut.Write([]byte(i.stringify(expr) + "\n"))
+}
+
+func (i *Interpreter) VisitExprStmt(stmt ast.ExprStmt) {
+	i.evaluate(stmt.Expression)
 }
 
 func (i *Interpreter) VisitBinaryExpr(expr ast.BinaryExpr) any {
@@ -108,6 +118,10 @@ func (i *Interpreter) VisitGroupExpr(expr ast.GroupExpr) any {
 	return i.evaluate(expr)
 }
 
+func (i *Interpreter) VisitVarExpr(expr ast.VarExpr) any {
+	return globalEnvironment.Get(expr.Identifier)
+}
+
 func (i *Interpreter) isTruthy(value any) bool {
 	switch v := value.(type) {
 	case float64:
@@ -141,14 +155,34 @@ func (i *Interpreter) evaluate(expr ast.Expr) any {
 	return expr.Accept(i)
 }
 
+func (i *Interpreter) execute(stmt ast.Stmt) {
+	stmt.Accept(i)
+}
+
 func (i *Interpreter) error(token ast.Token, message string) {
-	err := runtimeError{message: message, token: token}
+	err := errors.NewRuntimeError(token, message)
 	i.stdErr.Write([]byte(fmt.Sprintf("[line %d] Runtime error: %s\n", token.LineNumber, err.Error())))
 	panic(err)
 }
 
-func NewInterpreter(stdErr io.Writer) *Interpreter {
+func (i *Interpreter) stringify(value any) string {
+	switch v := value.(type) {
+	case float64:
+		return fmt.Sprintf("%f", v)
+	case string:
+		return v
+	case bool:
+		if v {
+			return "benar"
+		}
+		return "salah"
+	}
+	return "unknown value"
+}
+
+func NewInterpreter(stdOut, stdErr io.Writer) *Interpreter {
 	return &Interpreter{
+		stdOut: stdOut,
 		stdErr: stdErr,
 	}
 }

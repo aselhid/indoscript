@@ -13,10 +13,29 @@ func (e parseError) Error() string {
 	return e.message
 }
 
+/*
+Grammar (so far)
+----------------
+program        -> declaration* EOF
+declaration    -> varDeclaration | statement
+varDeclaration -> "misal" IDENTIFIER "=" expresion ";"
+statement      -> exprStmt | printStmt
+exprStmt       -> expression ";"
+printStmt      -> "cetak" expression ";"
+expression     -> equality
+equality       -> comparison ( ("!=" | "==") comparison )*
+comparison     -> term ( ( ">" | ">=" | "<" | "<=" ) term )*
+term           -> factor ( ( "-" | "+" ) factor )*
+factor         -> unary ( ( "/" | "*" ) unary )*
+unary          -> ( "!" | "-" ) unary | primary
+primary        -> FALSE | TRUE | NIL | NUMBER | STRING | group | IDENTIFIER
+group          -> "(" expression ")"
+*/
+
 type Parser struct {
+	stdErr   io.Writer
 	tokens   []Token
 	current  int
-	stdErr   io.Writer
 	hasError bool
 }
 
@@ -27,7 +46,7 @@ func NewParser(tokens []Token) *Parser {
 }
 
 // using Expr first
-func (p *Parser) Parse() ([]Expr, bool) {
+func (p *Parser) Parse() ([]Stmt, bool) {
 	defer func() {
 		if err := recover(); err != nil {
 			if _, ok := err.(parseError); ok {
@@ -38,11 +57,47 @@ func (p *Parser) Parse() ([]Expr, bool) {
 			}
 		}
 	}()
-	var result []Expr
+	var result []Stmt
 	for !p.isAtEnd() {
-		result = append(result, p.expression())
+		result = append(result, p.declaration())
 	}
 	return result, p.hasError
+}
+
+func (p *Parser) declaration() Stmt {
+	if p.match(TokenLet) {
+		return p.varDeclaration()
+	}
+	return p.statement()
+}
+
+func (p *Parser) varDeclaration() Stmt {
+	identifier := p.consume(TokenIdentifier, "expect variable name after 'mulai'")
+	if !p.match(TokenEqual) {
+		p.error(identifier, "identifier without initialization is not allowed")
+	}
+	initializer := p.expression()
+	p.consume(TokenSemicolon, "expect ';' after statement")
+	return NewVarStmt(identifier, initializer)
+}
+
+func (p *Parser) statement() Stmt {
+	if p.match(TokenPrint) {
+		return p.printStmt()
+	}
+	return p.exprStmt()
+}
+
+func (p *Parser) printStmt() Stmt {
+	expr := p.expression()
+	p.consume(TokenSemicolon, "expect ';' after statement")
+	return NewPrintStmt(expr)
+}
+
+func (p *Parser) exprStmt() Stmt {
+	expr := p.expression()
+	p.consume(TokenSemicolon, "expect ';' after statement")
+	return NewExprStmt(expr)
 }
 
 func (p *Parser) expression() Expr {
@@ -108,6 +163,8 @@ func (p *Parser) primary() Expr {
 		return NewPrimaryExpr(nil)
 	case p.match(TokenNumber, TokenString):
 		return NewPrimaryExpr(p.previous().Literal)
+	case p.match(TokenIdentifier):
+		return NewVarExpr(p.previous())
 	case p.match(TokenLeftParenthesis):
 		expr := p.expression()
 		p.consume(TokenRightParenthesis, "Expect ')' after using '(' to group expression.")

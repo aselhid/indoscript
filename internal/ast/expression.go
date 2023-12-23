@@ -5,6 +5,7 @@ type ExprVisitor interface {
 	VisitUnaryExpr(expr UnaryExpr) any
 	VisitPrimaryExpr(expr PrimaryExpr) any
 	VisitGroupExpr(expr GroupExpr) any
+	VisitVarExpr(expr VarExpr) any
 }
 
 type Expr interface {
@@ -30,8 +31,8 @@ func NewBinaryExpr(left Expr, operator Token, right Expr) BinaryExpr {
 }
 
 type UnaryExpr struct {
-	Operator Token
 	Right    Expr
+	Operator Token
 }
 
 func (e UnaryExpr) Accept(visitor ExprVisitor) any {
@@ -69,4 +70,16 @@ func (e GroupExpr) Accept(visitor ExprVisitor) any {
 
 func NewGroupExpr(expression Expr) GroupExpr {
 	return GroupExpr{expression: expression}
+}
+
+type VarExpr struct {
+	Identifier Token
+}
+
+func NewVarExpr(identifier Token) VarExpr {
+	return VarExpr{Identifier: identifier}
+}
+
+func (e VarExpr) Accept(visitor ExprVisitor) any {
+	return visitor.VisitVarExpr(e)
 }
