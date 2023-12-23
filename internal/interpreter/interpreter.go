@@ -94,7 +94,11 @@ func (i *Interpreter) VisitBinaryExpr(expr ast.BinaryExpr) any {
 	case ast.TokenLessEqual:
 		i.checkNumberOperands(expr.Operator, left, right)
 		return left.(float64) <= right.(float64)
-	case ast.TokenEqual:
+	case ast.TokenAnd:
+		return i.isTruthy(left) && i.isTruthy(right)
+	case ast.TokenOr:
+		return i.isTruthy(left) || i.isTruthy(right)
+	case ast.TokenEqualEqual:
 		return cmp.Equal(left, right)
 	case ast.TokenBangEqual:
 		return !cmp.Equal(left, right)

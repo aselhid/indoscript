@@ -24,7 +24,8 @@ statement      -> exprStmt | printStmt | block
 block          -> "{" declaration* "}"
 exprStmt       -> expression ";"
 printStmt      -> "cetak" expression ";"
-expression     -> equality
+expression     -> condition
+condition      -> equality ( ( "dan" | "atau" ) equality )*
 equality       -> comparison ( ("!=" | "==") comparison )*
 comparison     -> term ( ( ">" | ">=" | "<" | "<=" ) term )*
 term           -> factor ( ( "-" | "+" ) factor )*
@@ -128,7 +129,17 @@ func (p *Parser) block() []Stmt {
 }
 
 func (p *Parser) expression() Expr {
-	return p.equality()
+	return p.condition()
+}
+
+func (p *Parser) condition() Expr {
+	expr := p.equality()
+	for p.match(TokenAnd, TokenOr) {
+		operator := p.previous()
+		right := p.equality()
+		expr = NewBinaryExpr(expr, operator, right)
+	}
+	return expr
 }
 
 func (p *Parser) equality() Expr {
