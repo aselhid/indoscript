@@ -4,6 +4,7 @@ type StmtVisitor interface {
 	VisitPrintStmt(stmt PrintStmt)
 	VisitExprStmt(stmt ExprStmt)
 	VisitVarStmt(stmt VarStmt)
+	VisitBlockStmt(stmt BlockStmt)
 }
 
 type Stmt interface {
@@ -45,4 +46,16 @@ func (s VarStmt) Accept(visitor StmtVisitor) {
 
 func NewVarStmt(identifier Token, expression Expr) VarStmt {
 	return VarStmt{Identifier: identifier, Expression: expression}
+}
+
+type BlockStmt struct {
+	Statements []Stmt
+}
+
+func (s BlockStmt) Accept(visitor StmtVisitor) {
+	visitor.VisitBlockStmt(s)
+}
+
+func NewBlockStmt(statements []Stmt) BlockStmt {
+	return BlockStmt{Statements: statements}
 }

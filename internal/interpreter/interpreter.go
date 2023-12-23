@@ -49,6 +49,11 @@ func (i *Interpreter) VisitExprStmt(stmt ast.ExprStmt) {
 	i.evaluate(stmt.Expression)
 }
 
+func (i *Interpreter) VisitBlockStmt(stmt ast.BlockStmt) {
+	env := environment.NewEnvironment(globalEnvironment)
+	i.executeBlock(stmt.Statements, env)
+}
+
 func (i *Interpreter) VisitBinaryExpr(expr ast.BinaryExpr) any {
 	left := i.evaluate(expr.Left)
 	right := i.evaluate(expr.Right)
@@ -157,6 +162,15 @@ func (i *Interpreter) evaluate(expr ast.Expr) any {
 
 func (i *Interpreter) execute(stmt ast.Stmt) {
 	stmt.Accept(i)
+}
+
+func (i *Interpreter) executeBlock(stmts []ast.Stmt, environment *environment.Environment) {
+	previousEnv := globalEnvironment
+	globalEnvironment = environment
+	for _, stmt := range stmts {
+		i.execute(stmt)
+	}
+	globalEnvironment = previousEnv
 }
 
 func (i *Interpreter) error(token ast.Token, message string) {

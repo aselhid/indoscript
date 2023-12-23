@@ -1,4 +1,5 @@
 misal a = "hello";
+a = "good bye";
 misal b = "world";
 
 cetak a + " " + b;

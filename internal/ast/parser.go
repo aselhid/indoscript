@@ -17,9 +17,11 @@ func (e parseError) Error() string {
 Grammar (so far)
 ----------------
 program        -> declaration* EOF
-declaration    -> varDeclaration | statement
+declaration    -> varDeclaration | statement | assignment
+assignment     -> IDENTIFIER "=" expression ";"
 varDeclaration -> "misal" IDENTIFIER "=" expresion ";"
-statement      -> exprStmt | printStmt
+statement      -> exprStmt | printStmt | block
+block          -> "{" declaration* "}"
 exprStmt       -> expression ";"
 printStmt      -> "cetak" expression ";"
 expression     -> equality
@@ -65,25 +67,40 @@ func (p *Parser) Parse() ([]Stmt, bool) {
 }
 
 func (p *Parser) declaration() Stmt {
-	if p.match(TokenLet) {
+	switch {
+	case p.match(TokenLet):
 		return p.varDeclaration()
+	case p.match(TokenIdentifier):
+		return p.assignment()
 	}
 	return p.statement()
 }
 
+func (p *Parser) assignment() Stmt {
+	identifier := p.previous()
+	p.consume(TokenEqual, "expect '=' for declaration")
+
+	value := p.expression()
+	p.consume(TokenSemicolon, "expect ';' after statement")
+	return NewVarStmt(identifier, value)
+}
+
 func (p *Parser) varDeclaration() Stmt {
 	identifier := p.consume(TokenIdentifier, "expect variable name after 'mulai'")
-	if !p.match(TokenEqual) {
-		p.error(identifier, "identifier without initialization is not allowed")
-	}
+	p.consume(TokenEqual, "identifier without initialization is not allowed")
+
 	initializer := p.expression()
 	p.consume(TokenSemicolon, "expect ';' after statement")
+
 	return NewVarStmt(identifier, initializer)
 }
 
 func (p *Parser) statement() Stmt {
-	if p.match(TokenPrint) {
+	switch {
+	case p.match(TokenPrint):
 		return p.printStmt()
+	case p.match(TokenLeftBrace):
+		return NewBlockStmt(p.block())
 	}
 	return p.exprStmt()
 }
@@ -98,6 +115,16 @@ func (p *Parser) exprStmt() Stmt {
 	expr := p.expression()
 	p.consume(TokenSemicolon, "expect ';' after statement")
 	return NewExprStmt(expr)
+}
+
+func (p *Parser) block() []Stmt {
+	var statements []Stmt
+	for p.peek().TokenType != TokenRightBrace && !p.isAtEnd() {
+		statements = append(statements, p.declaration())
+	}
+	p.consume(TokenRightBrace, "expect '}' to close the scope")
+
+	return statements
 }
 
 func (p *Parser) expression() Expr {

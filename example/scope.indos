@@ -1,0 +1,19 @@
+misal a = "global a";
+misal b = "global b";
+misal c = "global c";
+{
+  misal a = "outer a";
+  misal b = "outer b";
+  {
+    misal a = "inner a";
+    cetak a;
+    cetak b;
+    cetak c;
+  }
+  cetak a;
+  cetak b;
+  cetak c;
+}
+cetak a;
+cetak b;
+cetak c;

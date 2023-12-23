@@ -18,7 +18,10 @@ func (e *Environment) Define(identifier ast.Token, value any) {
 
 func (e *Environment) Assign(identifier ast.Token, value any) {
 	if _, ok := e.values[identifier.Lexeme]; !ok {
-		e.error(identifier, fmt.Sprintf("Undefined variable %s\n", identifier.Lexeme))
+		if e.encloser == nil {
+			e.error(identifier, fmt.Sprintf("Undefined variable %s\n", identifier.Lexeme))
+		}
+		e.encloser.Assign(identifier, value)
 	}
 
 	e.values[identifier.Lexeme] = value
