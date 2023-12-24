@@ -1,0 +1,34 @@
+fungsi berhitung_mundur(angka) {
+    jika angka > 0 {
+        cetak angka;
+        berhitung_mundur(angka - 1);
+    }
+}
+
+berhitung_mundur(10);
+
+fungsi cetak_abc(a, b, c) {
+    cetak a + b + c;
+}
+
+misal a = "dunia";
+misal b = "...";
+misal c = "hello";
+cetak_abc("hallo", " ", "dunia");
+cetak a + b + c;
+
+fungsi balikin_4() {
+    balikin 4;
+}
+
+cetak balikin_4();
+
+fungsi factorial(n) {
+    jika n == 0 atau n == 1 {
+        balikin 1;
+    }
+
+    balikin n * factorial(n-1);
+}
+
+cetak factorial(10);

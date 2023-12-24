@@ -16,28 +16,32 @@ func (e parseError) Error() string {
 /*
 Grammar (so far)
 ----------------
-program        -> declaration* EOF
-declaration    -> varDeclaration | statement | assignment
-assignment     -> IDENTIFIER "=" expression ";"
-varDeclaration -> "misal" IDENTIFIER "=" expresion ";"
-statement      -> exprStmt | printStmt | block | ifStmt | whileStmt
-whileStmt      -> "untuk" expression "{" statement "}"
-ifStmt         -> "jika" expression "{" statement "}" ( "lain" "{" statement "}" )?
-block          -> "{" declaration* "}"
-exprStmt       -> expression ";"
-printStmt      -> "cetak" expression ";"
-expression     -> logic_or
-logic_or       -> logic_and ( "atau" logic_and )*
-logic_and      -> equality ( "dan" equality )*
-equality       -> comparison ( ("!=" | "==") comparison )*
-comparison     -> term ( ( ">" | ">=" | "<" | "<=" ) term )*
-term           -> factor ( ( "-" | "+" ) factor )*
-factor         -> unary ( ( "/" | "*" ) unary )*
-unary          -> ( "!" | "-" ) unary | call
-call           -> primary ( "(" arguments? ")" )*
-primary        -> FALSE | TRUE | NIL | NUMBER | STRING | group | IDENTIFIER
-group          -> "(" expression ")"
-arguments      -> expression ( "," expression )*
+program         -> declaration* EOF
+declaration     -> varDeclaration | statement | assignment | funcDeclaration
+funcDeclaration -> "fungsi" function
+function        -> IDENTIFIER "(" parameters? ")" block
+parameters      -> IDENTIFIER ( "," IDENTIFIER )*
+assignment      -> IDENTIFIER "=" expression ";"
+varDeclaration  -> "misal" IDENTIFIER "=" expresion ";"
+statement       -> exprStmt | printStmt | block | ifStmt | whileStmt | returnStmt
+returnStmt      -> "return" expression? ";"
+whileStmt       -> "untuk" expression "{" statement "}"
+ifStmt          -> "jika" expression "{" statement "}" ( "lain" "{" statement "}" )?
+block           -> "{" declaration* "}"
+exprStmt        -> expression ";"
+printStmt       -> "cetak" expression ";"
+expression      -> logic_or
+logic_or        -> logic_and ( "atau" logic_and )*
+logic_and       -> equality ( "dan" equality )*
+equality        -> comparison ( ("!=" | "==") comparison )*
+comparison      -> term ( ( ">" | ">=" | "<" | "<=" ) term )*
+term            -> factor ( ( "-" | "+" ) factor )*
+factor          -> unary ( ( "/" | "*" ) unary )*
+unary           -> ( "!" | "-" ) unary | call
+call            -> primary ( "(" arguments? ")" )*
+primary         -> FALSE | TRUE | NIL | NUMBER | STRING | group | IDENTIFIER
+group           -> "(" expression ")"
+arguments       -> expression ( "," expression )*
 */
 
 type Parser struct {
@@ -74,10 +78,16 @@ func (p *Parser) Parse() ([]Stmt, bool) {
 
 func (p *Parser) declaration() Stmt {
 	switch {
+	case p.match(TokenFunction):
+		return p.funcDeclaration()
 	case p.match(TokenLet):
 		return p.varDeclaration()
 	case p.match(TokenIdentifier):
-		return p.assignment()
+		if p.match(TokenEqual) {
+			return p.assignment()
+		} else {
+			p.undoAdvance()
+		}
 	}
 	return p.statement()
 }
@@ -101,6 +111,24 @@ func (p *Parser) varDeclaration() Stmt {
 	return NewVarStmt(identifier, initializer)
 }
 
+func (p *Parser) funcDeclaration() Stmt {
+	name := p.consume(TokenIdentifier, "expect identifier after fungsi declaration")
+	p.consume(TokenLeftParenthesis, "expect opening '(' after fungsi declaration")
+	var parameters []Token
+	if p.peek().TokenType != TokenRightParenthesis {
+		for {
+			parameters = append(parameters, p.consume(TokenIdentifier, "expect parameter name"))
+			if !p.match(TokenComma) {
+				break
+			}
+		}
+	}
+	p.consume(TokenRightParenthesis, "expect closing ')' after fungsi declaration")
+	p.consume(TokenLeftBrace, "expect opening '{' to define fungsi body")
+	body := p.block()
+	return NewFuncStmt(name, parameters, body)
+}
+
 func (p *Parser) statement() Stmt {
 	switch {
 	case p.match(TokenPrint):
@@ -111,6 +139,8 @@ func (p *Parser) statement() Stmt {
 		return p.ifStmt()
 	case p.match(TokenLoop):
 		return p.whileStmt()
+	case p.match(TokenReturn):
+		return p.returnStmt()
 	}
 	return p.exprStmt()
 }
@@ -158,6 +188,15 @@ func (p *Parser) whileStmt() Stmt {
 	return NewWhileStmt(condition, NewBlockStmt(stmt))
 }
 
+func (p *Parser) returnStmt() Stmt {
+	var value Expr
+	if p.peek().TokenType != TokenSemicolon {
+		value = p.expression()
+	}
+	p.consume(TokenSemicolon, "expect ';' after return statement")
+	return NewReturnStmt(value)
+}
+
 func (p *Parser) expression() Expr {
 	return p.logicOr()
 }
@@ -178,16 +217,6 @@ func (p *Parser) logicAnd() Expr {
 		operator := p.previous()
 		right := p.equality()
 		expr = NewLogicalExpr(expr, operator, right)
-	}
-	return expr
-}
-
-func (p *Parser) condition() Expr {
-	expr := p.equality()
-	for p.match(TokenAnd, TokenOr) {
-		operator := p.previous()
-		right := p.equality()
-		expr = NewBinaryExpr(expr, operator, right)
 	}
 	return expr
 }
@@ -253,7 +282,7 @@ func (p *Parser) call() Expr {
 
 func (p *Parser) finishCall(callee Expr) Expr {
 	var arguments []Expr
-	if p.peek().TokenType != TokenRightBrace {
+	if p.peek().TokenType != TokenRightParenthesis {
 		for {
 			arguments = append(arguments, p.expression())
 			if !p.match(TokenComma) {
@@ -319,6 +348,12 @@ func (p *Parser) advance() Token {
 	return p.previous()
 }
 
+func (p *Parser) undoAdvance() {
+	if p.current > 0 {
+		p.current--
+	}
+}
+
 func (p *Parser) previous() Token {
 	return p.tokens[p.current-1]
 }
@@ -340,6 +375,7 @@ func (p *Parser) sync() {
 }
 
 func (p *Parser) error(token Token, errMessage string) {
+	fmt.Println(errMessage)
 	location := "at the end of file"
 	if token.TokenType != TokenEof {
 		location = fmt.Sprintf("at '%s'", token.Lexeme)

@@ -7,6 +7,8 @@ type StmtVisitor interface {
 	VisitBlockStmt(stmt BlockStmt)
 	VisitIfStmt(stmt IfStmt)
 	VisitWhileStmt(stmt WhileStmt)
+	VisitFuncStmt(stmt FuncStmt)
+	VisitReturnStmt(stmt ReturnStmt)
 }
 
 type Stmt interface {
@@ -93,5 +95,37 @@ func NewWhileStmt(condition Expr, blockStmt BlockStmt) WhileStmt {
 	return WhileStmt{
 		Condition: condition,
 		Stmt:      blockStmt,
+	}
+}
+
+type FuncStmt struct {
+	Name       Token
+	Parameters []Token
+	Body       []Stmt
+}
+
+func (s FuncStmt) Accept(visitor StmtVisitor) {
+	visitor.VisitFuncStmt(s)
+}
+
+func NewFuncStmt(name Token, parameters []Token, body []Stmt) FuncStmt {
+	return FuncStmt{
+		Name:       name,
+		Parameters: parameters,
+		Body:       body,
+	}
+}
+
+type ReturnStmt struct {
+	Value Expr
+}
+
+func (s ReturnStmt) Accept(visitor StmtVisitor) {
+	visitor.VisitReturnStmt(s)
+}
+
+func NewReturnStmt(value Expr) ReturnStmt {
+	return ReturnStmt{
+		Value: value,
 	}
 }

@@ -11,11 +11,10 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-var globalEnv = environment.NewEnvironment(nil)
-
 type Interpreter struct {
-	stdErr io.Writer
-	stdOut io.Writer
+	stdErr    io.Writer
+	stdOut    io.Writer
+	globalEnv *environment.Environment
 }
 
 func (i *Interpreter) Interpret(stmts []ast.Stmt) (hasRuntimeError bool) {
@@ -38,7 +37,7 @@ func (i *Interpreter) Interpret(stmts []ast.Stmt) (hasRuntimeError bool) {
 
 func (i *Interpreter) VisitVarStmt(stmt ast.VarStmt) {
 	value := i.evaluate(stmt.Expression)
-	globalEnv.Define(stmt.Identifier, value)
+	i.globalEnv.Define(stmt.Identifier, value)
 }
 
 func (i *Interpreter) VisitPrintStmt(stmt ast.PrintStmt) {
@@ -51,7 +50,7 @@ func (i *Interpreter) VisitExprStmt(stmt ast.ExprStmt) {
 }
 
 func (i *Interpreter) VisitBlockStmt(stmt ast.BlockStmt) {
-	env := environment.NewEnvironment(globalEnv)
+	env := environment.NewEnvironment(i.globalEnv)
 	i.executeBlock(stmt.Statements, env)
 }
 
@@ -65,8 +64,21 @@ func (i *Interpreter) VisitIfStmt(stmt ast.IfStmt) {
 }
 
 func (i *Interpreter) VisitWhileStmt(stmt ast.WhileStmt) {
-	env := environment.NewEnvironment(globalEnv)
+	env := environment.NewEnvironment(i.globalEnv)
 	i.executeLoop(stmt.Condition, stmt.Stmt.Statements, env)
+}
+
+func (i *Interpreter) VisitFuncStmt(stmt ast.FuncStmt) {
+	function := NewFunctionCallable(stmt)
+	i.globalEnv.Define(stmt.Name, function)
+}
+
+func (i *Interpreter) VisitReturnStmt(stmt ast.ReturnStmt) {
+	var value any
+	if stmt.Value != nil {
+		value = i.evaluate(stmt.Value)
+	}
+	panic(ReturnValue{Value: value})
 }
 
 func (i *Interpreter) VisitBinaryExpr(expr ast.BinaryExpr) any {
@@ -158,7 +170,7 @@ func (i *Interpreter) VisitGroupExpr(expr ast.GroupExpr) any {
 }
 
 func (i *Interpreter) VisitVarExpr(expr ast.VarExpr) any {
-	return globalEnv.Get(expr.Identifier)
+	return i.globalEnv.Get(expr.Identifier)
 }
 
 func (i *Interpreter) VisitCallExpr(expr ast.CallExpr) any {
@@ -167,7 +179,7 @@ func (i *Interpreter) VisitCallExpr(expr ast.CallExpr) any {
 	for _, argExpr := range expr.Arguments {
 		arguments = append(arguments, i.evaluate(argExpr))
 	}
-	function, ok := callee.(Callable)
+	function, ok := callee.(FunctionCallable)
 	if !ok {
 		i.error(expr.Parenthesis, "fungsi call is not callable")
 	}
@@ -212,23 +224,23 @@ func (i *Interpreter) execute(stmt ast.Stmt) {
 }
 
 func (i *Interpreter) executeBlock(stmts []ast.Stmt, env *environment.Environment) {
-	previousEnv := globalEnv
-	globalEnv = env
+	previousEnv := i.globalEnv
+	i.globalEnv = env
 	for _, stmt := range stmts {
 		i.execute(stmt)
 	}
-	globalEnv = previousEnv
+	i.globalEnv = previousEnv
 }
 
 func (i *Interpreter) executeLoop(condition ast.Expr, stmts []ast.Stmt, env *environment.Environment) {
-	previousEnv := globalEnv
-	globalEnv = env
+	previousEnv := i.globalEnv
+	i.globalEnv = env
 	for i.isTruthy(i.evaluate(condition)) {
 		for _, stmt := range stmts {
 			i.execute(stmt)
 		}
 	}
-	globalEnv = previousEnv
+	i.globalEnv = previousEnv
 }
 
 func (i *Interpreter) error(token ast.Token, message string) {
@@ -254,7 +266,8 @@ func (i *Interpreter) stringify(value any) string {
 
 func NewInterpreter(stdOut, stdErr io.Writer) *Interpreter {
 	return &Interpreter{
-		stdOut: stdOut,
-		stdErr: stdErr,
+		stdOut:    stdOut,
+		stdErr:    stdErr,
+		globalEnv: environment.NewEnvironment(nil),
 	}
 }
