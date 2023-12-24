@@ -20,19 +20,24 @@ program        -> declaration* EOF
 declaration    -> varDeclaration | statement | assignment
 assignment     -> IDENTIFIER "=" expression ";"
 varDeclaration -> "misal" IDENTIFIER "=" expresion ";"
-statement      -> exprStmt | printStmt | block
+statement      -> exprStmt | printStmt | block | ifStmt | whileStmt
+whileStmt      -> "untuk" expression "{" statement "}"
+ifStmt         -> "jika" expression "{" statement "}" ( "lain" "{" statement "}" )?
 block          -> "{" declaration* "}"
 exprStmt       -> expression ";"
 printStmt      -> "cetak" expression ";"
-expression     -> condition
-condition      -> equality ( ( "dan" | "atau" ) equality )*
+expression     -> logic_or
+logic_or       -> logic_and ( "atau" logic_and )*
+logic_and      -> equality ( "dan" equality )*
 equality       -> comparison ( ("!=" | "==") comparison )*
 comparison     -> term ( ( ">" | ">=" | "<" | "<=" ) term )*
 term           -> factor ( ( "-" | "+" ) factor )*
 factor         -> unary ( ( "/" | "*" ) unary )*
-unary          -> ( "!" | "-" ) unary | primary
+unary          -> ( "!" | "-" ) unary | call
+call           -> primary ( "(" arguments? ")" )*
 primary        -> FALSE | TRUE | NIL | NUMBER | STRING | group | IDENTIFIER
 group          -> "(" expression ")"
+arguments      -> expression ( "," expression )*
 */
 
 type Parser struct {
@@ -102,6 +107,10 @@ func (p *Parser) statement() Stmt {
 		return p.printStmt()
 	case p.match(TokenLeftBrace):
 		return NewBlockStmt(p.block())
+	case p.match(TokenIf):
+		return p.ifStmt()
+	case p.match(TokenLoop):
+		return p.whileStmt()
 	}
 	return p.exprStmt()
 }
@@ -128,8 +137,49 @@ func (p *Parser) block() []Stmt {
 	return statements
 }
 
+func (p *Parser) ifStmt() Stmt {
+	condition := p.expression()
+
+	p.consume(TokenLeftBrace, "expect block start after jika condition")
+	thenStmt := p.block()
+	if p.match(TokenElse) {
+		p.consume(TokenLeftBrace, "expect block start '}' after lain statement")
+		elseStmt := p.block()
+		return NewIfStmt(condition, NewBlockStmt(thenStmt), NewBlockStmt(elseStmt))
+	}
+	return NewIfStmt(condition, NewBlockStmt(thenStmt), NewBlockStmt(nil))
+}
+
+func (p *Parser) whileStmt() Stmt {
+	condition := p.expression()
+
+	p.consume(TokenLeftBrace, "expect block start '{' after selama statement ")
+	stmt := p.block()
+	return NewWhileStmt(condition, NewBlockStmt(stmt))
+}
+
 func (p *Parser) expression() Expr {
-	return p.condition()
+	return p.logicOr()
+}
+
+func (p *Parser) logicOr() Expr {
+	expr := p.logicAnd()
+	for p.match(TokenOr) {
+		operator := p.previous()
+		right := p.logicAnd()
+		expr = NewLogicalExpr(expr, operator, right)
+	}
+	return expr
+}
+
+func (p *Parser) logicAnd() Expr {
+	expr := p.equality()
+	for p.match(TokenAnd) {
+		operator := p.previous()
+		right := p.equality()
+		expr = NewLogicalExpr(expr, operator, right)
+	}
+	return expr
 }
 
 func (p *Parser) condition() Expr {
@@ -188,7 +238,31 @@ func (p *Parser) unary() Expr {
 		right := p.unary()
 		return NewUnaryExpr(operator, right)
 	}
-	return p.primary()
+	return p.call()
+}
+
+func (p *Parser) call() Expr {
+	expr := p.primary()
+
+	for p.match(TokenLeftParenthesis) {
+		expr = p.finishCall(expr)
+	}
+
+	return expr
+}
+
+func (p *Parser) finishCall(callee Expr) Expr {
+	var arguments []Expr
+	if p.peek().TokenType != TokenRightBrace {
+		for {
+			arguments = append(arguments, p.expression())
+			if !p.match(TokenComma) {
+				break
+			}
+		}
+	}
+	parenthesis := p.consume(TokenRightParenthesis, "expect closing ')' after fungsi call")
+	return NewCallExpr(callee, arguments, parenthesis)
 }
 
 func (p *Parser) primary() Expr {
@@ -258,7 +332,7 @@ func (p *Parser) sync() {
 		}
 
 		switch p.peek().TokenType {
-		case TokenFunction, TokenLet, TokenFor, TokenIf, TokenPrint, TokenReturn:
+		case TokenFunction, TokenLet, TokenLoop, TokenIf, TokenPrint, TokenReturn:
 			return
 		}
 		p.advance()

@@ -6,6 +6,8 @@ type ExprVisitor interface {
 	VisitPrimaryExpr(expr PrimaryExpr) any
 	VisitGroupExpr(expr GroupExpr) any
 	VisitVarExpr(expr VarExpr) any
+	VisitLogicalExpr(expr LogicalExpr) any
+	VisitCallExpr(expr CallExpr) any
 }
 
 type Expr interface {
@@ -24,6 +26,24 @@ func (e BinaryExpr) Accept(visitor ExprVisitor) any {
 
 func NewBinaryExpr(left Expr, operator Token, right Expr) BinaryExpr {
 	return BinaryExpr{
+		Left:     left,
+		Operator: operator,
+		Right:    right,
+	}
+}
+
+type LogicalExpr struct {
+	Left     Expr
+	Right    Expr
+	Operator Token
+}
+
+func (e LogicalExpr) Accept(visitor ExprVisitor) any {
+	return visitor.VisitLogicalExpr(e)
+}
+
+func NewLogicalExpr(left Expr, operator Token, right Expr) LogicalExpr {
+	return LogicalExpr{
 		Left:     left,
 		Operator: operator,
 		Right:    right,
@@ -76,10 +96,28 @@ type VarExpr struct {
 	Identifier Token
 }
 
+func (e VarExpr) Accept(visitor ExprVisitor) any {
+	return visitor.VisitVarExpr(e)
+}
+
 func NewVarExpr(identifier Token) VarExpr {
 	return VarExpr{Identifier: identifier}
 }
 
-func (e VarExpr) Accept(visitor ExprVisitor) any {
-	return visitor.VisitVarExpr(e)
+type CallExpr struct {
+	Callee      Expr
+	Arguments   []Expr
+	Parenthesis Token
+}
+
+func (e CallExpr) Accept(visitor ExprVisitor) any {
+	return visitor.VisitCallExpr(e)
+}
+
+func NewCallExpr(callee Expr, arguments []Expr, parenthesis Token) CallExpr {
+	return CallExpr{
+		Callee:      callee,
+		Arguments:   arguments,
+		Parenthesis: parenthesis,
+	}
 }

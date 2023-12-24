@@ -226,7 +226,7 @@ func TestNumber(t *testing.T) {
 }
 
 func TestKeyword(t *testing.T) {
-	scanner, stdErr := setupScanner("misal \njika lain fungsi balikin kosong benar salah untuk cetak dan atau")
+	scanner, stdErr := setupScanner("misal \njika lain fungsi balikin kosong benar salah selama cetak dan atau")
 	expected := []ast.Token{
 		{TokenType: ast.TokenLet, LineNumber: 1, Lexeme: "misal"},
 		{TokenType: ast.TokenIf, LineNumber: 2, Lexeme: "jika"},
@@ -236,7 +236,7 @@ func TestKeyword(t *testing.T) {
 		{TokenType: ast.TokenNil, LineNumber: 2, Lexeme: "kosong"},
 		{TokenType: ast.TokenTrue, LineNumber: 2, Lexeme: "benar"},
 		{TokenType: ast.TokenFalse, LineNumber: 2, Lexeme: "salah"},
-		{TokenType: ast.TokenFor, LineNumber: 2, Lexeme: "untuk"},
+		{TokenType: ast.TokenLoop, LineNumber: 2, Lexeme: "selama"},
 		{TokenType: ast.TokenPrint, LineNumber: 2, Lexeme: "cetak"},
 		{TokenType: ast.TokenAnd, LineNumber: 2, Lexeme: "dan"},
 		{TokenType: ast.TokenOr, LineNumber: 2, Lexeme: "atau"},
@@ -248,7 +248,7 @@ func TestKeyword(t *testing.T) {
 
 func TestIdentifier(t *testing.T) {
 	{
-		scanner, stdErr := setupScanner("mimisal \njikaka lalainin fffungsi balikinnn kokokosong benarbenar sasalahlah un tuk ce\ntak dandan watau")
+		scanner, stdErr := setupScanner("mimisal \njikaka lalainin fffungsi balikinnn kokokosong benarbenar sasalahlah se lama ce\ntak dandan watau")
 		expected := []ast.Token{
 			{TokenType: ast.TokenIdentifier, LineNumber: 1, Lexeme: "mimisal"},
 			{TokenType: ast.TokenIdentifier, LineNumber: 2, Lexeme: "jikaka"},
@@ -259,8 +259,8 @@ func TestIdentifier(t *testing.T) {
 			{TokenType: ast.TokenIdentifier, LineNumber: 2, Lexeme: "benarbenar"},
 			{TokenType: ast.TokenIdentifier, LineNumber: 2, Lexeme: "sasalahlah"},
 			{TokenType: ast.TokenIdentifier, LineNumber: 2, Lexeme: "un"},
-			{TokenType: ast.TokenIdentifier, LineNumber: 2, Lexeme: "tuk"},
-			{TokenType: ast.TokenIdentifier, LineNumber: 2, Lexeme: "ce"},
+			{TokenType: ast.TokenIdentifier, LineNumber: 2, Lexeme: "se"},
+			{TokenType: ast.TokenIdentifier, LineNumber: 2, Lexeme: "lama"},
 			{TokenType: ast.TokenIdentifier, LineNumber: 3, Lexeme: "tak"},
 			{TokenType: ast.TokenIdentifier, LineNumber: 3, Lexeme: "dandan"},
 			{TokenType: ast.TokenIdentifier, LineNumber: 3, Lexeme: "watau"},

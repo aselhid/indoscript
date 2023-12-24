@@ -1,0 +1,16 @@
+misal a = 1;
+jika a == 1 {
+    cetak "masuk";
+} lain {
+    cetak "masuk sebelah";
+}
+
+misal angka_satu = 0;
+misal angka_dua = 1;
+selama angka_satu < 100 {
+    cetak angka_satu;
+    misal angka_sementara = angka_dua;
+    angka_dua = angka_dua + angka_satu;
+    angka_satu = angka_sementara;
+}
+cetak angka_sementara;

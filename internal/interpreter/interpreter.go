@@ -3,6 +3,7 @@ package interpreter
 import (
 	"fmt"
 	"io"
+	"strconv"
 
 	"github.com/aselhid/indoscript/internal/ast"
 	"github.com/aselhid/indoscript/internal/environment"
@@ -10,7 +11,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-var globalEnvironment = environment.NewEnvironment(nil)
+var globalEnv = environment.NewEnvironment(nil)
 
 type Interpreter struct {
 	stdErr io.Writer
@@ -37,7 +38,7 @@ func (i *Interpreter) Interpret(stmts []ast.Stmt) (hasRuntimeError bool) {
 
 func (i *Interpreter) VisitVarStmt(stmt ast.VarStmt) {
 	value := i.evaluate(stmt.Expression)
-	globalEnvironment.Define(stmt.Identifier, value)
+	globalEnv.Define(stmt.Identifier, value)
 }
 
 func (i *Interpreter) VisitPrintStmt(stmt ast.PrintStmt) {
@@ -50,8 +51,22 @@ func (i *Interpreter) VisitExprStmt(stmt ast.ExprStmt) {
 }
 
 func (i *Interpreter) VisitBlockStmt(stmt ast.BlockStmt) {
-	env := environment.NewEnvironment(globalEnvironment)
+	env := environment.NewEnvironment(globalEnv)
 	i.executeBlock(stmt.Statements, env)
+}
+
+func (i *Interpreter) VisitIfStmt(stmt ast.IfStmt) {
+	value := i.evaluate(stmt.Condition)
+	if i.isTruthy(value) {
+		i.VisitBlockStmt(stmt.ThenStmt)
+	} else {
+		i.VisitBlockStmt(stmt.ElseStmt)
+	}
+}
+
+func (i *Interpreter) VisitWhileStmt(stmt ast.WhileStmt) {
+	env := environment.NewEnvironment(globalEnv)
+	i.executeLoop(stmt.Condition, stmt.Stmt.Statements, env)
 }
 
 func (i *Interpreter) VisitBinaryExpr(expr ast.BinaryExpr) any {
@@ -106,6 +121,21 @@ func (i *Interpreter) VisitBinaryExpr(expr ast.BinaryExpr) any {
 	return nil
 }
 
+func (i *Interpreter) VisitLogicalExpr(expr ast.LogicalExpr) any {
+	left := i.evaluate(expr.Left)
+
+	if expr.Operator.TokenType == ast.TokenOr {
+		if i.isTruthy(left) {
+			return left
+		}
+	} else {
+		if !i.isTruthy(left) {
+			return left
+		}
+	}
+	return i.evaluate(expr.Right)
+}
+
 func (i *Interpreter) VisitUnaryExpr(expr ast.UnaryExpr) any {
 	right := i.evaluate(expr.Right)
 
@@ -128,7 +158,20 @@ func (i *Interpreter) VisitGroupExpr(expr ast.GroupExpr) any {
 }
 
 func (i *Interpreter) VisitVarExpr(expr ast.VarExpr) any {
-	return globalEnvironment.Get(expr.Identifier)
+	return globalEnv.Get(expr.Identifier)
+}
+
+func (i *Interpreter) VisitCallExpr(expr ast.CallExpr) any {
+	callee := i.evaluate(expr.Callee)
+	var arguments []any
+	for _, argExpr := range expr.Arguments {
+		arguments = append(arguments, i.evaluate(argExpr))
+	}
+	function, ok := callee.(Callable)
+	if !ok {
+		i.error(expr.Parenthesis, "fungsi call is not callable")
+	}
+	return function.Call(i, arguments)
 }
 
 func (i *Interpreter) isTruthy(value any) bool {
@@ -168,13 +211,24 @@ func (i *Interpreter) execute(stmt ast.Stmt) {
 	stmt.Accept(i)
 }
 
-func (i *Interpreter) executeBlock(stmts []ast.Stmt, environment *environment.Environment) {
-	previousEnv := globalEnvironment
-	globalEnvironment = environment
+func (i *Interpreter) executeBlock(stmts []ast.Stmt, env *environment.Environment) {
+	previousEnv := globalEnv
+	globalEnv = env
 	for _, stmt := range stmts {
 		i.execute(stmt)
 	}
-	globalEnvironment = previousEnv
+	globalEnv = previousEnv
+}
+
+func (i *Interpreter) executeLoop(condition ast.Expr, stmts []ast.Stmt, env *environment.Environment) {
+	previousEnv := globalEnv
+	globalEnv = env
+	for i.isTruthy(i.evaluate(condition)) {
+		for _, stmt := range stmts {
+			i.execute(stmt)
+		}
+	}
+	globalEnv = previousEnv
 }
 
 func (i *Interpreter) error(token ast.Token, message string) {
@@ -186,7 +240,7 @@ func (i *Interpreter) error(token ast.Token, message string) {
 func (i *Interpreter) stringify(value any) string {
 	switch v := value.(type) {
 	case float64:
-		return fmt.Sprintf("%f", v)
+		return strconv.FormatFloat(v, 'f', -1, 64)
 	case string:
 		return v
 	case bool:

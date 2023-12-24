@@ -12,7 +12,7 @@ const (
 	TokenNil                       // kosong
 	TokenTrue                      // benar
 	TokenFalse                     // salah
-	TokenFor                       // untuk
+	TokenLoop                      // selama
 	TokenPrint                     // cetak -- TODO: make as part of std library
 	TokenAnd                       // dan
 	TokenOr                        // atau

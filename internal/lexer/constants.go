@@ -11,7 +11,7 @@ var keywords = map[string]ast.TokenType{
 	"kosong":  ast.TokenNil,
 	"benar":   ast.TokenTrue,
 	"salah":   ast.TokenFalse,
-	"untuk":   ast.TokenFor,
+	"selama":  ast.TokenLoop,
 	"cetak":   ast.TokenPrint,
 	"dan":     ast.TokenAnd,
 	"atau":    ast.TokenOr,

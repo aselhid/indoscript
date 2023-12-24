@@ -5,6 +5,8 @@ type StmtVisitor interface {
 	VisitExprStmt(stmt ExprStmt)
 	VisitVarStmt(stmt VarStmt)
 	VisitBlockStmt(stmt BlockStmt)
+	VisitIfStmt(stmt IfStmt)
+	VisitWhileStmt(stmt WhileStmt)
 }
 
 type Stmt interface {
@@ -58,4 +60,38 @@ func (s BlockStmt) Accept(visitor StmtVisitor) {
 
 func NewBlockStmt(statements []Stmt) BlockStmt {
 	return BlockStmt{Statements: statements}
+}
+
+type IfStmt struct {
+	Condition Expr
+	ThenStmt  BlockStmt
+	ElseStmt  BlockStmt
+}
+
+func (s IfStmt) Accept(visitor StmtVisitor) {
+	visitor.VisitIfStmt(s)
+}
+
+func NewIfStmt(condition Expr, thenStmt BlockStmt, elseStmt BlockStmt) IfStmt {
+	return IfStmt{
+		Condition: condition,
+		ThenStmt:  thenStmt,
+		ElseStmt:  elseStmt,
+	}
+}
+
+type WhileStmt struct {
+	Condition Expr
+	Stmt      BlockStmt
+}
+
+func (s WhileStmt) Accept(visitor StmtVisitor) {
+	visitor.VisitWhileStmt(s)
+}
+
+func NewWhileStmt(condition Expr, blockStmt BlockStmt) WhileStmt {
+	return WhileStmt{
+		Condition: condition,
+		Stmt:      blockStmt,
+	}
 }
